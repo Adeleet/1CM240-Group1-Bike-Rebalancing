@@ -426,6 +426,7 @@ class BikerEnv:
             if self.stations[event.ID].currentCap == self.stations[event.ID].capacity:
                 cost = 1
 
+
             # drop the bike anyhow
             self.stations[event.ID].currentCap += event.quantity
 
