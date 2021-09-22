@@ -21,7 +21,11 @@ data['start_month'] = data['starttime'].dt.month
 data['start_day'] = data['starttime'].dt.day
 data['start_hour'] = data['starttime'].dt.hour
 data['start_minute'] = data['starttime'].dt.minute
+data.drop('starttime', axis=1, inplace=True)
 
+data = pd.get_dummies(data, columns=['start station id'], drop_first=True)
+first_column = data.pop('count')
+data.insert(0, 'count', first_column)
 
 
 from sklearn.impute import KNNImputer
@@ -48,10 +52,10 @@ for i in range(12):
 
     # kf = KFold(n_splits=5)
     train, test = train_test_split(data, test_size=0.2)
-    x_train = train[['start station id', 'start_year', 'start_month', 'start_day', 'start_hour', 'start_minute']]
+    x_train = train.iloc[:, 1:]
     y_train = train['count']
 
-    x_test = test[['start station id', 'start_year', 'start_month', 'start_day', 'start_hour', 'start_minute']]
+    x_test = test.iloc[:, 1:]
     y_test = test[['count']]
     # Training the models
     xgb_clf.fit(x_train, y_train)
