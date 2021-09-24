@@ -18,6 +18,9 @@ class State:
         self.arrivalTime = arrivalTime
         self.capacities = capacities
         self.vehicleCapAvail = vehicleCapAvail
+    
+    def as_array(self):
+        return [self.hour, self.time, self.arrivalTime, self.capacities, self.vehicleCapAvail]
 
 
 class Event:
@@ -67,11 +70,13 @@ class Vehicle:
 
 class BikerEnv:
 
-    def __init__(self, name):
+    def __init__(self, name,use_sample=True):
         self.game_over = False    # Boolean that inidcates if an episode has ended or not
         self.name = name           # Name of the environment
         # busyness parameter (it scales mean interarrival time between customers, so lower is more demand)
         self.busyness = BUSY_PARAMETER
+        
+        self.use_sample = use_sample
 
         self.current_step = 0  # a counter for the decision epochs/points
 
@@ -151,7 +156,8 @@ class BikerEnv:
         return travelTime
 
     def readStationList(self):
-        with open('TestData.csv') as csv_file:
+        filepath = 'TestDataSample.csv' if self.use_sample else 'TestData.csv'
+        with open(filepath) as csv_file:
 
             csv_reader = csv.DictReader(csv_file)
             stationVector = [0] * 10000
@@ -187,7 +193,8 @@ class BikerEnv:
             index = [x.ID for x in self.stations].index(ID)
             hashTable[ID] = index
 
-        with open('TestData.csv') as csv_file:
+        filepath = 'TestDataSample.csv' if self.use_sample else 'TestData.csv'
+        with open(filepath) as csv_file:
 
             csv_reader = csv.DictReader(csv_file)
             demandProb = np.zeros((24, len(self.stations), len(self.stations)))
@@ -459,6 +466,7 @@ class BikerEnv:
         return State(self.hour, self.time, self.vehicle.arrivalTimeTo,
                      capacities, self.vehicle.capacity - self.vehicle.load)
 
+    
     # This function generates a new bike drop. This is only called after a
     # customer has sucessfully gotten a bike.
 
