@@ -1,3 +1,5 @@
+#%%
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -81,3 +83,5 @@ for modelType in [xgb]:
     print(modelType["name"]+' model medianAE score: {0:0.4f}'. format(np.mean(modelType["medianAE"])))
     print(modelType["name"]+' model MAPE score: {0:0.4f}'. format(np.mean(modelType["MAPE"])))
 
+
+# %%
