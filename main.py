@@ -18,7 +18,7 @@ import gzip
 
 from BikerEnv import BikerEnv
 from BikerTrainer import BikerTrainer
-import constants
+from constants import NITERATIONS_PARAMETER, OUTPUT_FLAG
 
 
 env = BikerEnv("Test")
