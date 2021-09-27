@@ -20,7 +20,8 @@ class State:
         self.vehicleCapAvail = vehicleCapAvail
     
     def as_array(self):
-        return [self.hour, self.time, self.arrivalTime, self.capacities, self.vehicleCapAvail]
+        return np.array(self.capacities + [self.vehicleCapAvail])
+        # return [self.hour, self.time, self.arrivalTime, self.capacities, self.vehicleCapAvail]
 
 
 class Event:
@@ -422,7 +423,17 @@ class BikerEnv:
         if self.time > self.episodeLength:
             self.game_over = True
 
-        return cost
+        new_state = self.getState()
+        done = self.game_over
+
+        return new_state, cost, done
+    
+    def print_episode(self):
+        totalBikes = self.acceptedBikes+self.rejectedBikes
+        bikesAcceptedPerc = 100*(self.acceptedBikes/totalBikes)
+        print(f"\nEpisode objective = {self.objective}")
+        print(f"{self.acceptedBikes}/{totalBikes} = {bikesAcceptedPerc:.1d}%\n")
+        
 
     # this function resets the environment to their initial object. After calling, an episode can start
 
@@ -446,7 +457,7 @@ class BikerEnv:
         self.events.append(Event(-1, stationFrom, self.time + interArrival, True))
         self.stations = copy.deepcopy(self.initStations)
 
-        return
+        return self.getState()
 
     # This function translates the current environment/reality to an aggregated representation of the reality
     # This is all the information we base our decision on.

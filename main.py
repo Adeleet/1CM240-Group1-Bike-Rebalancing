@@ -6,66 +6,69 @@ Created on Thu Sep  2 11:32:14 2021
 
 Note, we need the TestData in the same folder to be able to run the code!
 """
+#%%
 
-
+from random import random
 import numpy as np
 import pandas as pd
 import csv
 import math
 import copy
 import gzip
+from tqdm import tqdm
 
 
 from BikerEnv import BikerEnv
 from BikerTrainer import BikerTrainer
-from constants import NITERATIONS_PARAMETER, OUTPUT_FLAG
+from constants import EPSILON_DECAY, MIN_EPSILON, NITERATIONS_PARAMETER, OUTPUT_FLAG, STEPS_BETWEEN_UPDATE
 
-
+#%%
 env = BikerEnv("Test")
-trainer = BikerTrainer(1, 2)
+trainer = BikerTrainer(env)
+
+epsilon = 1  # not a constant, going to be decayed
 
 
 numberEpisodes = NITERATIONS_PARAMETER
 obj = 0
-for i in range(0, numberEpisodes):
+steps_since_update = 0 
+episode_rewards = []
 
-    # print()
-    # print()
-    # for stat in env.stations:
-    #    print(stat.currentCap, end = ' ')
-    # print()
+#%%
+for i in tqdm(range(0, numberEpisodes)):
+    episode_reward = 0
+    current_state = env.reset()
+    done = False
+    step = 1
 
-    while (not env.game_over):
+    while not done:
 
-        if OUTPUT_FLAG:
-            print()
-            print()
-            print()
-            print("NEW ITERATION at time: " + str(env.time))
+        if random() > epsilon:
+            # Take greedy action using Q values
+            decision = trainer.greedy_action(current_state)
+        else:
+            # Take random action
+            decision = trainer.random_action(current_state)
+        
+        # Send action to environment and observe new state, reward and done (game over)
+        new_state, reward, done = env.step(decision)
 
-        state = env.getState()
-        decision = trainer.getDecision(state)
+        episode_reward += reward
 
-        reward = env.step(decision)
+        trainer.add_to_replay_buffer(current_state,decision,reward,new_state,done)
+        trainer.train(done,step)
 
-        trainer.update(state, decision, reward)
-        if OUTPUT_FLAG:
-            print("END ITERATION at time: " + str(env.time))
+        current_state = new_state
+        step += 1
 
-    # for stat in env.stations:
-    #    print(stat.currentCap, end = ' ')
+    episode_rewards.append(episode_reward)
 
-    # print()
-    print("Objective of episode = " + str(env.objective)
-          + "(" + str(env.acceptedBikes) + "/" + str(env.acceptedBikes + env.rejectedBikes)
-          + " = "
-          + str(int(float(env.acceptedBikes) / float(env.acceptedBikes + env.rejectedBikes) * 100.00)) + "%)")
-
-    obj += env.objective
-
-    env.reset()
-
-print("Total perfomance = " + str(obj / NITERATIONS_PARAMETER))
+    # Decay epsilon parameter
+    if epsilon > MIN_EPSILON:
+        epsilon *= EPSILON_DECAY
+        epsilon = max(epsilon, MIN_EPSILON)
+    
+    env.print_episode()
 
 
-#stations = env.readStationList()
+# %%
