@@ -2,13 +2,12 @@ from numpy.core.fromnumeric import argmax
 from tensorflow.python.ops.gen_array_ops import const
 import constants
 import numpy as np
-from random import random, randint, sample
+from random import random, randint, sample, choice
 from copy import copy
 from collections import deque
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
 from tensorflow.keras.optimizers import Adam
-from VFA import ValueFunctionApproximator
 
 class Decision:
     def __init__(self, stationFrom, stationTo, demand):
@@ -38,7 +37,6 @@ class BikerTrainer:
 
         self.target_update_count = 0
 
-        self.VFA = ValueFunctionApproximator()
 
     def add_to_replay_buffer(self,state,decision,reward,new_state,done):
         """
@@ -53,18 +51,17 @@ class BikerTrainer:
         Input layer (334,): State.capacities and State.vehicleCapAvail
         Output layer (3,): Decision.stationFrom, Decision.stationTo, Decision.demand
         """
-        numStations = 333
-        demandRange = 20
-        output_size = numStations*numStations*demandRange
+        num_stations = 328
         model = Sequential([
-            Dense(300,activation='relu',input_shape=(334,)),
+            Dense(300,activation='relu',input_shape=(num_stations+1,)),
             Dense(300,activation='relu'),
-            Dense(output_size),
+            Dense(300,activation='relu'),
+            Dense(num_stations),
         ],name='BikerTrainer')
-        model.compile(loss='categorical_crossentropy',optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy',optimizer=Adam(learning_rate=0.01), metrics=['accuracy'])
         return model
 
-    def train(self,game_over,step):
+    def train(self,game_over):
         """
         Train sequential neural network if possible (min. replay buffer reached) and update Q_values
 
@@ -73,6 +70,7 @@ class BikerTrainer:
         The main model is used to make predictions for the current states, whereas the target model is used to make predictions for the 'next_states'
         """
         if len(self.replay_buffer) < constants.MIN_REPLAY_BUFFER_SIZE:
+            print('Replay buffer size not filled')
             return
         
         batch = sample(self.replay_buffer, constants.BATCH_SIZE)
@@ -81,10 +79,10 @@ class BikerTrainer:
 
         # TODO use VFA here instead of lookup table
 
-        current_Q_values = self.model.predict(current_states).reshape(-1,333,333,20)
+        current_Q_values = self.model.predict(current_states)#.reshape(328)
 
         future_states = np.array([transition[3].as_array() for transition in batch])
-        future_Q_values = self.target_model.predict(future_states).reshape(-1,333,333,20)
+        future_Q_values = self.target_model.predict(future_states)#.reshape(328)
 
 
         X = []
@@ -99,13 +97,13 @@ class BikerTrainer:
                 updated_Q = reward
             
     
-            current_Q = current_Q_values[i].reshape(333,333,20)
-            current_Q[decision.stationFrom,decision.stationTo,decision.demand] = updated_Q
+            current_Q = current_Q_values[i]#.reshape(328)
+            current_Q[decision.stationTo] = updated_Q
 
             X.append(current_state.as_array())
             y.append(current_Q)
         
-        self.model.fit(np.array(X),np.array(y).reshape(constants.BATCH_SIZE,-1),batch_size=constants.BATCH_SIZE, shuffle=False)
+        self.model.fit(np.array(X),np.array(y).reshape(constants.BATCH_SIZE,-1),batch_size=constants.BATCH_SIZE,epochs=10)
 
         # Update target network after game over
         if game_over:
@@ -117,11 +115,11 @@ class BikerTrainer:
             self.target_update_count = 0
 
 
-    def predict(self, states):
-        predictions = super().predict(states)
-        n = predictions.reshape(-1,333,333,20).shape[0]
-        argmax_probs = predictions.reshape(n,-1).argmax(axis=-1)
-        return np.unravel_index(argmax_probs,(333,333,20))
+    # def predict(self, states):
+    #     predictions = super().predict(states)
+    #     n = predictions.reshape(-1,333,333,20).shape[0]
+    #     argmax_probs = predictions.reshape(n,-1).argmax(axis=-1)
+    #     return np.unravel_index(argmax_probs,(333,333,20))
             
 
 
@@ -189,8 +187,33 @@ class BikerTrainer:
         
         
     def greedy_action(self,state):
+        if state.arrivalTime > state.time:
+            return Decision(-1, -1, -1)
+
         q_values = self.get_Q_values(state)
-        return np.argmin(q_values)
+        # print('do greeedy')
+        stationTo = np.argmin(q_values)
+
+
+
+        minStation = state.capacities.index(min(state.capacities))
+        maxStation = state.capacities.index(max(state.capacities))
+        if abs(min(state.capacities) - max(state.capacities)) <= 2:
+            return Decision(-1, -1, -1)
+        # determine how many bikes to take from max to min station
+        avg = int(0.5 * (state.capacities[minStation] + state.capacities[maxStation]))
+        fromMax = max(0,
+                    min(state.vehicleCapAvail,
+                        min(state.capacities[maxStation] - avg, avg - state.capacities[minStation])))
+        # return the decision from minstation, to maxstation, frommax
+        if constants.OUTPUT_FLAG:
+            print("Decision is taken at time: " + str(state.time))
+            print("from station " + str(maxStation) + " of current cap: " + str(max(state.capacities)))
+            print("to   station " + str(minStation) + " of current cap: " + str(min(state.capacities)))
+            print("Quantity: " + str(fromMax))
+            print()
+
+        return Decision(maxStation, stationTo, fromMax)
 
     def heuristic_action(self,state):
 
@@ -221,6 +244,34 @@ class BikerTrainer:
         return Decision(maxStation, minStation, fromMax)
 
     def random_action(self,state):
+        # the vehicle is available.
+        # find station with minimum and maximum number of capacity.
+        # minStation = randint(328)
+        maxStation = state.capacities.index(max(state.capacities))
+        minStation= choice([station for station in range(328) if not station == maxStation])
+
+        if abs(min(state.capacities) - max(state.capacities)) <= 2:
+            return Decision(-1, -1, -1)
+
+        # determine how many bikes to take from max to min station
+        avg = int(0.5 * (state.capacities[minStation] + state.capacities[maxStation]))
+
+        fromMax = max(0,
+                      min(state.vehicleCapAvail,
+                          min(state.capacities[maxStation] - avg, avg - state.capacities[minStation])))
+
+        # return the decision from minstation, to maxstation, frommax
+
+        if constants.OUTPUT_FLAG:
+            print("Decision is taken at time: " + str(state.time))
+            print("from station " + str(maxStation) + " of current cap: " + str(max(state.capacities)))
+            print("to   station " + str(minStation) + " of current cap: " + str(min(state.capacities)))
+            print("Quantity: " + str(fromMax))
+            print()
+
+        return Decision(maxStation, minStation, fromMax)
+
+
         if len(state.capacities)<=1:
             raise RuntimeError(f"State capacities length: {state.capacities}\nState: {state.as_array()}")
         maxStation = randint(0,len(state.capacities)-1)

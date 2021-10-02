@@ -33,7 +33,7 @@ numberEpisodes = NITERATIONS_PARAMETER
 obj = 0
 steps_since_update = 0 
 episode_rewards = []
-
+steps_taken = 0
 #%%
 for i in tqdm(range(0, numberEpisodes)):
     episode_reward = 0
@@ -56,7 +56,10 @@ for i in tqdm(range(0, numberEpisodes)):
         episode_reward += reward
 
         trainer.add_to_replay_buffer(current_state,decision,reward,new_state,done)
-        trainer.train(done,step)
+        if step > STEPS_BETWEEN_UPDATE:
+            print(f"Updating trainer, time: {current_state.time}s")
+            trainer.train(done)
+            step = 1
 
         current_state = new_state
         step += 1
@@ -69,6 +72,7 @@ for i in tqdm(range(0, numberEpisodes)):
         epsilon = max(epsilon, MIN_EPSILON)
     
     env.print_episode()
+    print(f"Epsilon : {epsilon}")
 
 
 # %%
