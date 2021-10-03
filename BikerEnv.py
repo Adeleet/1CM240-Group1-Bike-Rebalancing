@@ -20,8 +20,7 @@ class State:
         self.vehicleCapAvail = vehicleCapAvail
     
     def as_array(self):
-        return np.array(self.capacities + [self.vehicleCapAvail])
-        # return [self.hour, self.time, self.arrivalTime, self.capacities, self.vehicleCapAvail]
+        return [self.hour, self.time, self.arrivalTime, self.capacities, self.vehicleCapAvail]
 
 
 class Event:
@@ -172,7 +171,9 @@ class BikerEnv:
                                             float(row["start station latitude"]),
                                             float(row["start station longitude"]),
                                             row["start station name"]))
+
                 stationVector[int(row["start station id"])] = 1
+                
                 if stationVector[int(row["end station id"])] == 0:
                     stations.append(Station(int(row["end station id"]),
                                             STATIONCAPACITY_PARAMETER,
@@ -180,7 +181,7 @@ class BikerEnv:
                                             float(row["end station longitude"]),
                                             row["end station name"]))
 
-                # stationVector[int(row["start station id"])] = 1
+                
                 stationVector[int(row["end station id"])] = 1
 
         return stations
@@ -264,7 +265,6 @@ class BikerEnv:
             self.prob[t] = totalObsHour / 3600
 
         return demandProb, demandProbOrigin, travelTimeMean, travelTimeStd
-    
     def takeDecision(self, decision):
 
         self.hour = (int)((self.time % self.dayLength) / 3600)
@@ -424,17 +424,7 @@ class BikerEnv:
         if self.time > self.episodeLength:
             self.game_over = True
 
-        new_state = self.getState()
-        done = self.game_over
-
-        return new_state, cost, done
-    
-    def print_episode(self):
-        totalBikes = self.acceptedBikes+self.rejectedBikes
-        bikesAcceptedPerc = 100*(self.acceptedBikes/totalBikes)
-        print(f"\nEpisode objective = {self.objective}")
-        print(f"{self.acceptedBikes}/{totalBikes} = {bikesAcceptedPerc:.1f}%\n")
-        
+        return cost
 
     # this function resets the environment to their initial object. After calling, an episode can start
 
@@ -458,7 +448,7 @@ class BikerEnv:
         self.events.append(Event(-1, stationFrom, self.time + interArrival, True))
         self.stations = copy.deepcopy(self.initStations)
 
-        return self.getState()
+        return
 
     # This function translates the current environment/reality to an aggregated representation of the reality
     # This is all the information we base our decision on.
