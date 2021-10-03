@@ -6,15 +6,16 @@ import math
 import copy
 import gzip
 from time import time
+from copy import deepcopy
 
-from BikerEnv import BikerEnv
+from BikerEnv import BikerEnv, Vehicle
 from BikerTrainer import BikerTrainer
 from constants import NITERATIONS_PARAMETER, OUTPUT_FLAG
 
 #%%
 env = BikerEnv("Test",use_sample=False)
 #%%
-trainer = BikerTrainer(1,2)
+trainer = BikerTrainer(env)
 
 
 #%%

@@ -1,4 +1,8 @@
+from numpy.core.records import fromstring
 import constants
+from DemandPredictor import DemandPredictor
+predictor = DemandPredictor()
+import numpy as np
 
 class Decision:
     def __init__(self, stationFrom, stationTo, demand):
@@ -9,9 +13,8 @@ class Decision:
 class BikerTrainer:
 
     # this should initilize everything related to storing previous values of decisions/policies etc.
-    def __init__(self, arg1, arg2):
-        self.arg1 = arg1
-        self.arg2 = arg2
+    def __init__(self, env):
+        self.env = env
 
     # This functions should update the reward associated with the state decision combination
     # Note: this implementation is currently myopic, so this is not required.
@@ -34,6 +37,10 @@ class BikerTrainer:
             return Decision(-1, -1, -1)
 
         # the vehicle is available.
+        return self.heuristicInventoryFillRate(state)
+        
+
+    def heuristicAveraging(self,state):
         # find station with minimum and maximum number of capacity.
         minStation = state.capacities.index(min(state.capacities))
         maxStation = state.capacities.index(max(state.capacities))
@@ -48,14 +55,19 @@ class BikerTrainer:
                       min(state.vehicleCapAvail,
                           min(state.capacities[maxStation] - avg, avg - state.capacities[minStation])))
 
-        # return the decision from minstation, to maxstation, frommax
+        return Decision(maxStation, minStation, fromMax) 
+    
+    def heuristicInventoryFillRate(self,state,fill_rate=0.5):
+        expected_capacities = np.array(state.capacities) - predictor.predict_demand(self.env)
+        expected_capacities_gap = (expected_capacities-constants.STATIONCAPACITY_PARAMETER*fill_rate)
+        fromStation = expected_capacities_gap.argmax()
+        toStation = expected_capacities_gap.argmin()
+        avg = int(0.5 * (state.capacities[toStation] + state.capacities[fromStation]))
 
-        if constants.OUTPUT_FLAG:
-            print("Decision is taken at time: " + str(state.time))
-            print("from station " + str(maxStation) + " of current cap: " + str(max(state.capacities)))
-            print("to   station " + str(minStation) + " of current cap: " + str(min(state.capacities)))
-            print("Quantity: " + str(fromMax))
-            print()
+        fromMax = max(0,
+                      min(state.vehicleCapAvail,
+                          min(state.capacities[fromStation] - avg, avg - state.capacities[toStation])))
+        return Decision(fromStation,toStation,fromMax)
 
-        return Decision(maxStation, minStation, fromMax)
+
 
