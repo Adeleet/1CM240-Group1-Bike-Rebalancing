@@ -5,8 +5,7 @@ import pandas as pd
 import csv
 import math
 import copy
-import gzip
-import zipfile
+from time import time
 
 # This describes a State
 
@@ -93,7 +92,9 @@ class BikerEnv:
         self.events = []
 
         # list of bike-sharing stations
+        start_time = time()
         self.stations = self.readStationList()
+        print(f"Reading stations took {time()-start_time:.1f} seconds")
 
         # list of bike-sharing stations in their initial state (to restart episode easily)
         self.initStations = copy.deepcopy(self.stations)
@@ -113,11 +114,15 @@ class BikerEnv:
         # probability conditional on hour and origin, probaility conditional on
         # hour for origin, mean travel times and std travel times for requests
         # (assumed normal IS IT!?!)
+        start_time = time()
         self.probHourConditional, self.probHour, self.meanTravelTime, self.stdTravelTime = self.ProbDemandPerHour()
-
+        print(f"Probability Demand setting took {time()-start_time:.1f} seconds")
         # travel time of the vehicle: equal to mean if there is information,
         # otherwise set to 20km/h avg speed.
+
+        start_time = time()
         self.travelTime = self.setTravelTime()
+        print(f"Setting travel times took {time()-start_time:.1f} seconds")
 
         # self explanatory time units
         self.dayLength = 3600 * 24
@@ -128,7 +133,7 @@ class BikerEnv:
         # depends on this. First improvement might be to consider demand differing
         # for each day
         self.hour = 0
-
+    
         # in any case, put a new pick in the eventqueue using interarrival time
         interArrival, stationFrom = self.generateNewPick()
 
